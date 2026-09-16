@@ -11,6 +11,7 @@ requireRole('admin');
     <p>Welcome, <?= htmlspecialchars($_SESSION['username']) ?>.</p>
 
     <p><a href="equipment.php">Manage Equipment</a></p>
+    <p><a href="students.php">Manage Students</a></p>
     <p><a href="../logout.php">Logout</a></p>
 </body>
 </html>

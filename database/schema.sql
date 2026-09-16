@@ -14,14 +14,16 @@ CREATE TABLE equipment (
     equipment_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     description TEXT,
-    quantity INT NOT NULL DEFAULT 0
+    serial_number VARCHAR(100) NOT NULL UNIQUE,
+    status ENUM('available', 'unavailable') NOT NULL DEFAULT 'available'
 );
 
 INSERT INTO users (username, password, full_name, email, role) VALUES
 ('admin1', '$2b$10$mpl9AWjNZepYFeYiYsd3mudzRhL5M.jQqNVB418IRWKeRH.M09lDO', 'Admin User', 'admin@lab.local', 'admin'),
 ('student1', '$2b$10$mpl9AWjNZepYFeYiYsd3mudzRhL5M.jQqNVB418IRWKeRH.M09lDO', 'Student User', 'student@lab.local', 'student');
 
-INSERT INTO equipment (name, description, quantity) VALUES
-('Laptop', 'Basic lab laptop', 5),
-('Arduino Uno', 'Arduino development board', 10),
-('Mouse', 'USB computer mouse', 8);
+INSERT INTO equipment (name, description, serial_number, status) VALUES
+('Laptop', 'Basic lab laptop', 'LAP-001', 'available'),
+('Laptop', 'Basic lab laptop', 'LAP-002', 'available'),
+('Arduino Uno', 'Arduino development board', 'ARD-001', 'available'),
+('Mouse', 'USB computer mouse', 'MOU-001', 'available');

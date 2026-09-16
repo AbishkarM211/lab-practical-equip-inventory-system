@@ -3,7 +3,7 @@ require '../config.php';
 require '../includes/auth.php';
 requireRole('student');
 
-$result = mysqli_query($conn, "SELECT * FROM equipment WHERE quantity > 0 ORDER BY name");
+$result = mysqli_query($conn, "SELECT * FROM equipment WHERE status='available' ORDER BY name");
 ?>
 <!DOCTYPE html>
 <html>
@@ -14,12 +14,12 @@ $result = mysqli_query($conn, "SELECT * FROM equipment WHERE quantity > 0 ORDER 
     <p><a href="../logout.php">Logout</a></p>
 
     <table border="1" cellpadding="5">
-        <tr><th>Name</th><th>Description</th><th>Quantity</th></tr>
+        <tr><th>Name</th><th>Description</th><th>Serial Number</th></tr>
         <?php while ($row = mysqli_fetch_assoc($result)): ?>
             <tr>
                 <td><?= htmlspecialchars($row['name']) ?></td>
                 <td><?= htmlspecialchars($row['description']) ?></td>
-                <td><?= $row['quantity'] ?></td>
+                <td><?= htmlspecialchars($row['serial_number']) ?></td>
             </tr>
         <?php endwhile; ?>
     </table>
