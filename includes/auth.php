@@ -1,7 +1,9 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-function registerUser($conn, $username, $password, $email, $fullName) {
+function registerUser($conn, $username, $password, $email, $fullName, $role = 'student') {
     $username = mysqli_real_escape_string($conn, $username);
     $email = mysqli_real_escape_string($conn, $email);
     $fullName = mysqli_real_escape_string($conn, $fullName);
@@ -12,7 +14,7 @@ function registerUser($conn, $username, $password, $email, $fullName) {
     }
 
     $password = password_hash($password, PASSWORD_DEFAULT);
-    $query = "INSERT INTO users (username, password, full_name, email) VALUES ('$username', '$password', '$fullName', '$email')";
+    $query = "INSERT INTO users (username, password, full_name, email, role) VALUES ('$username', '$password', '$fullName', '$email', '$role')";
 
     if (mysqli_query($conn, $query)) {
         return ['success' => true];
@@ -37,6 +39,24 @@ function loginUser($conn, $username, $password) {
     return ['success' => true, 'role' => $user['role']];
 }
 
+function setFlash($message) {
+    $_SESSION['flash'] = $message;
+}
+
+function getFlash() {
+    if (empty($_SESSION['flash'])) {
+        return null;
+    }
+    $message = $_SESSION['flash'];
+    unset($_SESSION['flash']);
+    return $message;
+}
+
+function logoutUser() {
+    $_SESSION = [];
+    session_destroy();
+}
+
 function requireLogin() {
     if (!isset($_SESSION['user_id'])) {
         header('Location: ../login.php');
@@ -46,14 +66,8 @@ function requireLogin() {
 
 function requireRole($role) {
     requireLogin();
-
     if ($_SESSION['role'] !== $role) {
+        http_response_code(403);
         die('Access denied.');
     }
 }
-
-function logoutUser() {
-    $_SESSION = [];
-    session_destroy();
-}
-?>

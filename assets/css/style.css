@@ -3,14 +3,37 @@ body {
     margin: 40px;
 }
 
-input, button {
-    padding: 5px;
+.page {
+    max-width: 1100px;
+}
+
+input, button, select {
+    padding: 6px;
+}
+
+label, p {
+    line-height: 1.5;
 }
 
 table {
     border-collapse: collapse;
+    width: 100%;
 }
 
 th, td {
-    padding: 6px;
+    border: 1px solid #999;
+    padding: 7px;
+    text-align: left;
+}
+
+.success {
+    color: green;
+}
+
+.error {
+    color: red;
+}
+
+.inline-form {
+    display: inline;
 }

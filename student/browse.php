@@ -1,27 +1,27 @@
 <?php
 require '../config.php';
 require '../includes/auth.php';
+require '../includes/functions.php';
 requireRole('student');
 
-$result = mysqli_query($conn, "SELECT * FROM equipment WHERE status='available' ORDER BY name");
+$message = getFlash();
+$items = getAvailableItems($conn);
 ?>
 <!DOCTYPE html>
 <html>
-<head><title>Available Equipment</title></head>
-<body>
-    <h1>Available Equipment</h1>
-    <p>Welcome, <?= htmlspecialchars($_SESSION['username']) ?>.</p>
-    <p><a href="../logout.php">Logout</a></p>
-
-    <table border="1" cellpadding="5">
-        <tr><th>Name</th><th>Description</th><th>Serial Number</th></tr>
-        <?php while ($row = mysqli_fetch_assoc($result)): ?>
-            <tr>
-                <td><?= htmlspecialchars($row['name']) ?></td>
-                <td><?= htmlspecialchars($row['description']) ?></td>
-                <td><?= htmlspecialchars($row['serial_number']) ?></td>
-            </tr>
-        <?php endwhile; ?>
-    </table>
-</body>
-</html>
+<head><link rel="stylesheet" href="../assets/css/style.css"><title>Available Equipment</title></head>
+<body><div class="page">
+<h1>Available Equipment</h1>
+<p>Welcome, <?= htmlspecialchars($_SESSION['username']) ?>.</p>
+<p><a href="my_items.php">My Borrowing</a> | <a href="../logout.php">Logout</a></p>
+<?php if ($message): ?><p class="success"><?= htmlspecialchars($message) ?></p><?php endif; ?>
+<table>
+<tr><th>Item</th><th>Category</th><th>Serial Number</th><th>Action</th></tr>
+<?php foreach ($items as $item): ?>
+<tr>
+<td><?= htmlspecialchars($item['name']) ?></td><td><?= htmlspecialchars($item['category']) ?></td><td><?= htmlspecialchars($item['serial_number']) ?></td>
+<td><form method="post" action="reserve.php" class="inline-form"><input type="hidden" name="item_id" value="<?= $item['item_id'] ?>"><button type="submit">Reserve</button></form></td>
+</tr>
+<?php endforeach; ?>
+</table>
+</div></body></html>

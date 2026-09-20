@@ -2,7 +2,7 @@
 require 'config.php';
 require 'includes/auth.php';
 
-$error = '';
+$error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = registerUser(
@@ -10,7 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         trim($_POST['username'] ?? ''),
         $_POST['password'] ?? '',
         trim($_POST['email'] ?? ''),
-        trim($_POST['full_name'] ?? '')
+        trim($_POST['full_name'] ?? ''),
+        'student'
     );
 
     if ($result['success']) {
@@ -23,22 +24,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!DOCTYPE html>
 <html>
-<head><title>Lab Inventory - Register</title></head>
+<head>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <title>Register</title>
+</head>
 <body>
-    <h1>Create Student Account</h1>
+    <h1>Create an account</h1>
 
     <?php if ($error): ?>
-        <p style="color:red;"><?= htmlspecialchars($error) ?></p>
+        <p class="error"><?= htmlspecialchars($error) ?></p>
     <?php endif; ?>
 
     <form method="post">
-        <p>Full name: <input type="text" name="full_name"></p>
-        <p>Username: <input type="text" name="username"></p>
-        <p>Email: <input type="email" name="email"></p>
-        <p>Password: <input type="password" name="password"></p>
+        <label>Full name:
+            <input type="text" name="full_name" required>
+        </label>
+
+        <label>Username:
+            <input type="text" name="username" required>
+        </label>
+
+        <label>Email:
+            <input type="email" name="email" required>
+        </label>
+
+        <label>Password:
+            <input type="password" name="password" required>
+        </label>
+
         <button type="submit">Register</button>
     </form>
 
-    <p><a href="login.php">Back to login</a></p>
+    <p><a href="login.php">Already have an account? Log in</a></p>
 </body>
 </html>
