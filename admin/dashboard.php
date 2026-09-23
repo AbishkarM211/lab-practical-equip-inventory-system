@@ -18,6 +18,9 @@ $result = mysqli_query($conn, "
     ORDER BY br.created_at DESC
 ");
 $active = mysqli_fetch_all($result, MYSQLI_ASSOC);
+
+$reservedCount = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS total FROM borrow_records WHERE status = 'reserved'"))['total'];
+$borrowedCount = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS total FROM borrow_records WHERE status = 'borrowed'"))['total'];
 ?>
 <!DOCTYPE html>
 <html>
@@ -30,6 +33,7 @@ $active = mysqli_fetch_all($result, MYSQLI_ASSOC);
 
     <?php if ($message): ?><p class="success"><?= htmlspecialchars($message) ?></p><?php endif; ?>
 
+    <p>Active reservations: <?= (int) $reservedCount ?> | Active borrows: <?= (int) $borrowedCount ?></p>
     <h2>Active Reservations &amp; Borrows</h2>
     <table>
         <tr><th>Borrow #</th><th>Student</th><th>Item</th><th>Serial #</th><th>Status</th><th>Reserved Until / Due</th><th>Action</th></tr>

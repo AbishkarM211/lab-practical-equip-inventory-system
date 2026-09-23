@@ -113,3 +113,20 @@ function getAllStudents($conn) {
     $result = mysqli_query($conn, "SELECT user_id, username, full_name, email FROM users WHERE role = 'student' ORDER BY user_id DESC");
     return mysqli_fetch_all($result, MYSQLI_ASSOC);
 }
+
+function cancelStudentReservation($conn, $userId, $borrowId) {
+    $userId = (int) $userId;
+    $borrowId = (int) $borrowId;
+
+    $result = mysqli_query($conn, "SELECT item_id, status FROM borrow_records WHERE borrow_id = $borrowId AND user_id = $userId");
+    $record = mysqli_fetch_assoc($result);
+
+    if (!$record || $record['status'] !== 'reserved') {
+        return ['success' => false, 'message' => 'Active reservation not found.'];
+    }
+
+    mysqli_query($conn, "UPDATE borrow_records SET status = 'cancelled' WHERE borrow_id = $borrowId AND user_id = $userId");
+    mysqli_query($conn, "UPDATE physical_items SET status = 'available' WHERE item_id = {$record['item_id']} AND status = 'reserved'");
+
+    return ['success' => true];
+}
