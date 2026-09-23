@@ -10,16 +10,23 @@ function lazyCleanupExpiredReservations($conn) {
     mysqli_query($conn, "UPDATE borrow_records SET status = 'expired' WHERE status = 'reserved' AND expiry_time < NOW()");
 }
 
-function getAvailableItems($conn) {
+function getAvailableItems($conn, $search = '') {
     lazyCleanupExpiredReservations($conn);
 
-    $result = mysqli_query($conn, "
+    $sql = "
         SELECT pi.item_id, pi.serial_number, em.name, em.description, em.category
         FROM physical_items pi
         JOIN equipment_models em ON em.model_id = pi.model_id
         WHERE pi.status = 'available'
-        ORDER BY em.name, pi.serial_number
-    ");
+    ";
+
+    if ($search !== '') {
+        $safeSearch = mysqli_real_escape_string($conn, $search);
+        $sql .= " AND (em.name LIKE '%$safeSearch%' OR em.category LIKE '%$safeSearch%' OR pi.serial_number LIKE '%$safeSearch%')";
+    }
+
+    $sql .= " ORDER BY em.name, pi.serial_number";
+    $result = mysqli_query($conn, $sql);
 
     return mysqli_fetch_all($result, MYSQLI_ASSOC);
 }

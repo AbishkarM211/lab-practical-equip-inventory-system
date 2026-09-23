@@ -37,3 +37,40 @@ th, td {
 .inline-form {
     display: inline;
 }
+
+
+/* Search improvements added in v5 */
+.search-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.search-form input {
+    flex: 1;
+    max-width: none;
+}
+
+.action-link {
+    display: inline-block;
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: #eef2ff;
+}
+
+.action-link:hover {
+    text-decoration: none;
+}
+
+.card {
+    padding: 18px;
+    border: 1px solid #ddd;
+    margin-top: 14px;
+}
+
+@media (max-width: 700px) {
+    .search-form {
+        flex-wrap: wrap;
+    }
+}
