@@ -38,8 +38,6 @@ th, td {
     display: inline;
 }
 
-
-/* Search improvements added in v5 */
 .search-form {
     display: flex;
     gap: 10px;
