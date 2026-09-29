@@ -72,3 +72,62 @@ th, td {
         flex-wrap: wrap;
     }
 }
+
+.item-thumb {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+}
+
+.image-placeholder,
+.large-image-placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    color: #666;
+    border-radius: 7px;
+}
+
+.image-placeholder {
+    width: 60px;
+    height: 60px;
+    font-size: 12px;
+}
+
+.item-detail {
+    display: grid;
+    grid-template-columns: minmax(260px, 420px) 1fr;
+    gap: 30px;
+    align-items: start;
+}
+
+.item-large-image {
+    width: 100%;
+    max-height: 460px;
+    object-fit: contain;
+    border: 1px solid #ddd;
+}
+
+.large-image-placeholder {
+    width: 100%;
+    min-height: 360px;
+}
+
+.eyebrow {
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-size: 12px;
+    font-weight: bold;
+    color: #666;
+}
+
+.item-description {
+    color: #222;
+}
+
+@media (max-width: 700px) {
+    .item-detail {
+        grid-template-columns: 1fr;
+    }
+}

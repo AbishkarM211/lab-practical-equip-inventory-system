@@ -16,6 +16,8 @@ CREATE TABLE equipment_models (
     name VARCHAR(100) NOT NULL,
     description TEXT,
     category VARCHAR(50),
+    image_path VARCHAR(255),
+    item_value DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -23,7 +25,7 @@ CREATE TABLE physical_items (
     item_id INT AUTO_INCREMENT PRIMARY KEY,
     model_id INT NOT NULL,
     serial_number VARCHAR(50) NOT NULL UNIQUE,
-    status ENUM('available', 'reserved', 'borrowed') NOT NULL DEFAULT 'available',
+    status ENUM('available', 'reserved', 'borrowed', 'damaged', 'lost') NOT NULL DEFAULT 'available',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (model_id) REFERENCES equipment_models(model_id) ON DELETE RESTRICT
 );
@@ -49,10 +51,10 @@ INSERT INTO users (username, password, full_name, email, role) VALUES
 ('admin1', '$2b$10$mpl9AWjNZepYFeYiYsd3mudzRhL5M.jQqNVB418IRWKeRH.M09lDO', 'Admin User', 'admin@lab.local', 'admin'),
 ('student1', '$2b$10$mpl9AWjNZepYFeYiYsd3mudzRhL5M.jQqNVB418IRWKeRH.M09lDO', 'Student User', 'student@lab.local', 'student');
 
-INSERT INTO equipment_models (name, description, category) VALUES
-('Laptop', 'Basic lab laptop', 'Computer'),
-('Arduino Uno', 'Arduino development board', 'Electronics'),
-('Mouse', 'USB computer mouse', 'Accessory');
+INSERT INTO equipment_models (name, description, category, item_value) VALUES
+('Laptop', 'Basic lab laptop', 'Computer', 850.00),
+('Arduino Uno', 'Arduino development board', 'Electronics', 45.00),
+('Mouse', 'USB computer mouse', 'Accessory', 90.00);
 
 INSERT INTO physical_items (model_id, serial_number, status) VALUES
 (1, 'LAP-001', 'available'),

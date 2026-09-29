@@ -36,11 +36,22 @@ $items = getAvailableItems($conn, $search);
     </div>
 <?php else: ?>
     <table>
-    <tr><th>Item</th><th>Category</th><th>Serial Number</th><th>Action</th></tr>
+    <tr><th>Photo</th><th>Item</th><th>Category</th><th>Serial Number</th><th>Action</th></tr>
     <?php foreach ($items as $item): ?>
     <tr>
-    <td><?= htmlspecialchars($item['name']) ?></td><td><?= htmlspecialchars($item['category']) ?></td><td><?= htmlspecialchars($item['serial_number']) ?></td>
-    <td><form method="post" action="reserve.php" class="inline-form"><input type="hidden" name="item_id" value="<?= $item['item_id'] ?>"><button type="submit">Reserve</button></form></td>
+    <td>
+        <a href="item.php?id=<?= (int) $item['item_id'] ?>">
+            <?php if (!empty($item['image_path'])): ?>
+                <img src="../<?= htmlspecialchars($item['image_path']) ?>" alt="<?= htmlspecialchars($item['name']) ?>" class="item-thumb">
+            <?php else: ?>
+                <span class="image-placeholder">No image</span>
+            <?php endif; ?>
+        </a>
+    </td>
+    <td><a href="item.php?id=<?= (int) $item['item_id'] ?>"><strong><?= htmlspecialchars($item['name']) ?></strong></a></td>
+    <td><?= htmlspecialchars($item['category']) ?></td>
+    <td><?= htmlspecialchars($item['serial_number']) ?></td>
+    <td><form method="post" action="reserve.php" class="inline-form"><input type="hidden" name="item_id" value="<?= (int) $item['item_id'] ?>"><button type="submit">Reserve</button></form></td>
     </tr>
     <?php endforeach; ?>
     </table>

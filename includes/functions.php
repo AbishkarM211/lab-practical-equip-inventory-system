@@ -1,4 +1,20 @@
 <?php
+
+function handleEquipmentImageUpload($file) {
+    if (empty($file['tmp_name'])) {
+        return null;
+    }
+
+    $uploadDir = __DIR__ . '/../uploads/equipment/';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0775, true);
+    }
+
+    $filename = time() . '_' . basename($file['name']);
+    move_uploaded_file($file['tmp_name'], $uploadDir . $filename);
+
+    return 'uploads/equipment/' . $filename;
+}
 function lazyCleanupExpiredReservations($conn) {
     $result = mysqli_query($conn, "SELECT item_id FROM borrow_records WHERE status = 'reserved' AND expiry_time < NOW()");
 
@@ -14,7 +30,7 @@ function getAvailableItems($conn, $search = '') {
     lazyCleanupExpiredReservations($conn);
 
     $sql = "
-        SELECT pi.item_id, pi.serial_number, em.name, em.description, em.category
+        SELECT pi.item_id, pi.serial_number, em.model_id, em.name, em.description, em.category, em.image_path, em.item_value
         FROM physical_items pi
         JOIN equipment_models em ON em.model_id = pi.model_id
         WHERE pi.status = 'available'
@@ -29,6 +45,16 @@ function getAvailableItems($conn, $search = '') {
     $result = mysqli_query($conn, $sql);
 
     return mysqli_fetch_all($result, MYSQLI_ASSOC);
+}
+
+
+function getItem($conn, $itemId) {
+    $itemId = (int) $itemId;
+    $result = mysqli_query($conn, "SELECT pi.item_id, pi.serial_number, pi.status, em.model_id, em.name, em.description, em.category, em.image_path, em.item_value
+        FROM physical_items pi
+        JOIN equipment_models em ON em.model_id = pi.model_id
+        WHERE pi.item_id = $itemId");
+    return mysqli_fetch_assoc($result) ?: null;
 }
 
 function reserveItem($conn, $userId, $itemId) {
@@ -136,4 +162,20 @@ function cancelStudentReservation($conn, $userId, $borrowId) {
     mysqli_query($conn, "UPDATE physical_items SET status = 'available' WHERE item_id = {$record['item_id']} AND status = 'reserved'");
 
     return ['success' => true];
+}
+
+function getEquipmentModelsSummary($conn) {
+    $sql = "SELECT em.model_id, em.name, em.description, em.category, em.item_value, em.image_path,
+                   COUNT(pi.item_id) AS total_units,
+                   SUM(pi.status = 'available') AS available_units,
+                   SUM(pi.status = 'reserved') AS reserved_units,
+                   SUM(pi.status = 'borrowed') AS borrowed_units,
+                   SUM(pi.status = 'damaged') AS damaged_units,
+                   SUM(pi.status = 'lost') AS lost_units
+            FROM equipment_models em
+            LEFT JOIN physical_items pi ON pi.model_id = em.model_id
+            GROUP BY em.model_id
+            ORDER BY em.name";
+    $result = mysqli_query($conn, $sql);
+    return mysqli_fetch_all($result, MYSQLI_ASSOC);
 }
