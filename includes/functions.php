@@ -199,27 +199,149 @@ function markFinePaid($conn, $fineId) {
 }
 
 
-
 function sendNotification($conn, $userId, $message) {
-    $safeMessage = mysqli_real_escape_string($conn, $message);
-    mysqli_query($conn, "INSERT INTO notifications (user_id, message) VALUES ($userId, '$safeMessage')");
-}
+    try {
+        $stmt = mysqli_prepare($conn, "
+            INSERT INTO notifications (user_id, message)
+            VALUES (?, ?)
+        ");
 
-function getNotifications($conn, $userId) {
-    $result = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id = $userId ORDER BY created_at DESC");
-    return mysqli_fetch_all($result, MYSQLI_ASSOC);
-}
+        mysqli_stmt_bind_param($stmt, "is", $userId, $message);
 
-function sendDueSoonReminders($conn, $hoursBefore = 24) {
-    $sql = "SELECT br.borrow_id, br.user_id, br.due_date, em.name FROM borrow_records br JOIN physical_items pi ON pi.item_id = br.item_id JOIN equipment_models em ON em.model_id = pi.model_id WHERE br.status = 'borrowed' AND br.due_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL $hoursBefore HOUR)";
-    $result = mysqli_query($conn, $sql);
-    $records = mysqli_fetch_all($result, MYSQLI_ASSOC);
+        $success = mysqli_stmt_execute($stmt);
 
-    foreach ($records as $row) {
-        $msg = "Reminder (borrow #{$row['borrow_id']}): '{$row['name']}' is due soon on {$row['due_date']}.";
-        sendNotification($conn, (int) $row['user_id'], $msg);
+        mysqli_stmt_close($stmt);
+
+        return $success;
+
+    } catch (mysqli_sql_exception $e) {
+        error_log("Notification failed: " . $e->getMessage());
+        return false;
     }
 }
+
+
+function getNotifications($conn, $userId) {
+    $stmt = mysqli_prepare($conn, "
+        SELECT *
+        FROM notifications
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+    ");
+
+    mysqli_stmt_bind_param($stmt, "i", $userId);
+    mysqli_stmt_execute($stmt);
+
+    $result = mysqli_stmt_get_result($stmt);
+    $notifications = mysqli_fetch_all($result, MYSQLI_ASSOC);
+
+    mysqli_stmt_close($stmt);
+
+    return $notifications;
+}
+
+function updateNotificationStatus($conn, $notificationId, $userId, $isRead) {
+    $stmt = mysqli_prepare($conn, "UPDATE notifications SET is_read = ? WHERE notification_id = ? AND user_id = ?");
+
+    mysqli_stmt_bind_param($stmt, "iii", $isRead, $notificationId, $userId);
+
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+}
+
+
+function sendDueSoonReminders($conn, $hoursBefore = 24) {
+    $hoursBefore = (int) $hoursBefore;
+
+    if ($hoursBefore <= 0) {
+        return;
+    }
+
+    try {
+        $sql = "
+            SELECT
+                borrow.borrow_id,
+                borrow.user_id,
+                borrow.due_date,
+                model.name
+            FROM borrow_records AS borrow
+            INNER JOIN physical_items AS item
+                ON item.item_id = borrow.item_id
+            INNER JOIN equipment_models AS model
+                ON model.model_id = item.model_id
+            WHERE borrow.status = 'borrowed'
+            AND borrow.due_reminder_sent_at IS NULL
+            AND borrow.due_date BETWEEN NOW()
+                AND DATE_ADD(NOW(), INTERVAL $hoursBefore HOUR)
+        ";
+
+        $result = mysqli_query($conn, $sql);
+        $records = mysqli_fetch_all($result, MYSQLI_ASSOC);
+
+    } catch (mysqli_sql_exception $e) {
+        error_log("Due reminder query failed: " . $e->getMessage());
+        return;
+    }
+
+    foreach ($records as $row) {
+        try {
+            mysqli_begin_transaction($conn);
+
+            // Claim this reminder to prevent duplicates
+            $stmt = mysqli_prepare($conn, "
+                UPDATE borrow_records
+                SET due_reminder_sent_at = NOW()
+                WHERE borrow_id = ?
+                AND status = 'borrowed'
+                AND due_reminder_sent_at IS NULL
+                AND due_date BETWEEN NOW()
+                    AND DATE_ADD(NOW(), INTERVAL ? HOUR)
+            ");
+
+            $borrowId = (int) $row['borrow_id'];
+
+            mysqli_stmt_bind_param(
+                $stmt,
+                "ii",
+                $borrowId,
+                $hoursBefore
+            );
+
+            mysqli_stmt_execute($stmt);
+
+            $claimed = mysqli_stmt_affected_rows($stmt);
+
+            mysqli_stmt_close($stmt);
+
+            // Another request may have already claimed it
+            if ($claimed !== 1) {
+                mysqli_commit($conn);
+                continue;
+            }
+
+            // Create the student notification
+            $msg = "'{$row['name']}' is due soon on {$row['due_date']}.";
+
+            $sent = sendNotification(
+                $conn,
+                (int) $row['user_id'],
+                $msg
+            );
+
+            if ($sent) {
+                mysqli_commit($conn);
+            } else {
+                // Allow the reminder to be attempted again
+                mysqli_rollback($conn);
+            }
+
+        } catch (mysqli_sql_exception $e) {
+            mysqli_rollback($conn);
+            error_log("Due reminder processing failed: " . $e->getMessage());
+        }
+    }
+}
+
 
 function getRecentlyExpiredReservations($conn, $limit = 20) {
     $sql = "SELECT br.borrow_id, br.expiry_time, u.full_name, em.name, pi.serial_number FROM borrow_records br JOIN users u ON u.user_id = br.user_id JOIN physical_items pi ON pi.item_id = br.item_id JOIN equipment_models em ON em.model_id = pi.model_id WHERE br.status = 'expired' ORDER BY br.expiry_time DESC LIMIT $limit";
@@ -294,44 +416,98 @@ function deletePhysicalItem($conn, $itemId) {
     return ['success' => true];
 }
 
-
-
 function logDamageOrLossRow($conn, $itemId, $borrowId, $serialNumber, $itemName, $itemValue, $reason, $notes, $loggedBy, $imagePath = null) {
-    $safeSerial = mysqli_real_escape_string($conn, $serialNumber);
-    $safeName = mysqli_real_escape_string($conn, $itemName);
-    $safeReason = mysqli_real_escape_string($conn, $reason);
-    $safeNotes = mysqli_real_escape_string($conn, $notes);
-    $safeImg = $imagePath ? "'" . mysqli_real_escape_string($conn, $imagePath) . "'" : "NULL";
-    $safeBorrow = $borrowId ? $borrowId : "NULL";
-
-    $sql = "INSERT INTO damage_loss (item_id, borrow_id, serial_number, item_name, item_value, image_path, reason, notes, logged_by) VALUES ($itemId, $safeBorrow, '$safeSerial', '$safeName', $itemValue, $safeImg, '$safeReason', '$safeNotes', $loggedBy)";
-    mysqli_query($conn, $sql);
-    return mysqli_insert_id($conn);
+    $sql = "INSERT INTO damage_loss (item_id, borrow_id, serial_number, item_name, item_value,image_path, reason, notes, logged_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "iissdsssi", $itemId, $borrowId, $serialNumber, $itemName, $itemValue, $imagePath, $reason, $notes, $loggedBy);
+    mysqli_stmt_execute($stmt);
+    $logId = mysqli_insert_id($conn);
+    mysqli_stmt_close($stmt);
+    return $logId;
 }
 
 function logDamageOrLoss($conn, $itemId, $reason, $notes, $loggedBy) {
-    $result = mysqli_query($conn, "SELECT pi.item_id, pi.serial_number, em.name, em.item_value FROM physical_items pi JOIN equipment_models em ON em.model_id = pi.model_id WHERE pi.item_id = $itemId");
-    $item = mysqli_fetch_assoc($result);
-
-    if (!$item) {
-        return ['success' => false, 'message' => 'Item not found.'];
+    if (!in_array($reason, ['damaged', 'lost'], true)) {
+        return [
+            'success' => false,
+            'message' => 'Invalid damage/loss reason.'
+        ];
     }
+    try {
+        mysqli_begin_transaction($conn);
 
-    logDamageOrLossRow($conn, $itemId, null, $item['serial_number'], $item['name'], (float) $item['item_value'], $reason, $notes, $loggedBy);
-    
-    $safeReason = mysqli_real_escape_string($conn, $reason);
-    mysqli_query($conn, "UPDATE physical_items SET status = '$safeReason' WHERE item_id = $itemId");
+        $sql = "SELECT pi.item_id, pi.serial_number, pi.status, em.name, em.item_value FROM physical_items pi JOIN equipment_models em ON em.model_id = pi.model_id WHERE pi.item_id = ? FOR UPDATE";
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "i", $itemId);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $item = mysqli_fetch_assoc($result);
+        mysqli_stmt_close($stmt);
 
-    return ['success' => true];
+        if (!$item) {
+            mysqli_rollback($conn);
+
+            return [
+                'success' => false,
+                'message' => 'Item not found.'
+            ];
+        }
+
+        if ($item['status'] !== 'available') {
+            mysqli_rollback($conn);
+
+            return [
+                'success' => false,
+                'message' => 'Only available units can be logged through this page.'
+            ];
+        }
+
+        logDamageOrLossRow($conn, $itemId, null, $item['serial_number'], $item['name'], (float) $item['item_value'], $reason, $notes, $loggedBy);
+
+        $sql = "UPDATE physical_items SET status = ? WHERE item_id = ?";
+        $stmt = mysqli_prepare($conn, $sql);
+
+        mysqli_stmt_bind_param($stmt, "si", $reason, $itemId);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+
+        mysqli_commit($conn);
+
+        return ['success' => true];
+
+    } catch (mysqli_sql_exception $e) {
+        mysqli_rollback($conn);
+        error_log("Damage/loss logging failed: " . $e->getMessage());
+
+        return [
+            'success' => false,
+            'message' => 'Unable to record the damage/loss entry. Please try again.'
+        ];
+    }
 }
 
+function getDamageLossHistoryForItem($conn, $itemId) {
+    $sql = "SELECT dl.log_id, dl.borrow_id, dl.serial_number, dl.item_name, dl.item_value, dl.image_path, dl.reason, dl.notes, dl.logged_at, u.full_name AS logged_by_name FROM damage_loss dl JOIN users u ON u.user_id = dl.logged_by WHERE dl.item_id = ? ORDER BY dl.logged_at DESC, dl.log_id DESC";
+
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "i", $itemId);
+    mysqli_stmt_execute($stmt);
+
+    $result = mysqli_stmt_get_result($stmt);
+    $history = mysqli_fetch_all($result, MYSQLI_ASSOC);
+
+    mysqli_stmt_close($stmt);
+
+    return $history;
+}
+
+
 function getDamageLossLog($conn, $limit = 50) {
-    $sql = "SELECT dl.*, u.full_name AS logged_by_name FROM damage_loss dl JOIN users u ON u.user_id = dl.logged_by ORDER BY dl.logged_at DESC LIMIT $limit";
+    $limit = max(1, (int) $limit);
+    $sql = "SELECT dl.*, u.full_name AS logged_by_name FROM damage_loss dl JOIN users u ON u.user_id = dl.logged_by ORDER BY dl.logged_at DESC, dl.log_id DESC LIMIT $limit";
     $result = mysqli_query($conn, $sql);
     return mysqli_fetch_all($result, MYSQLI_ASSOC);
 }
-
-
 
 function getActiveBorrowsForNotify($conn) {
     $sql = "SELECT br.borrow_id, br.due_date, u.user_id, u.full_name, em.name, pi.serial_number FROM borrow_records br JOIN users u ON u.user_id = br.user_id JOIN physical_items pi ON pi.item_id = br.item_id JOIN equipment_models em ON em.model_id = pi.model_id WHERE br.status = 'borrowed' ORDER BY br.due_date";

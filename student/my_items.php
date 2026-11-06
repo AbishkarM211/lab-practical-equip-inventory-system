@@ -9,7 +9,7 @@ $message = getFlash();
 $userId = (int) $_SESSION['user_id'];
 $result = mysqli_query($conn, "
     SELECT br.borrow_id, br.status, br.reservation_time, br.expiry_time, br.borrow_date, br.due_date, br.return_date,
-           em.name, pi.serial_number
+        em.name, pi.serial_number
     FROM borrow_records br
     JOIN physical_items pi ON pi.item_id = br.item_id
     JOIN equipment_models em ON em.model_id = pi.model_id

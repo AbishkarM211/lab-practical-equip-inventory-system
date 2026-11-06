@@ -6,6 +6,7 @@ requireRole('admin');
 
 $summary = getReportSummary($conn);
 $overdue = getOverdueBorrows($conn);
+$damageLossLog = getDamageLossLog($conn);
 $statuses = ['available', 'reserved', 'borrowed', 'damaged', 'lost'];
 ?>
 <!DOCTYPE html>
@@ -24,6 +25,36 @@ $statuses = ['available', 'reserved', 'borrowed', 'damaged', 'lost'];
         <?php endforeach; ?>
     </ul>
 
+    <h2>Damage / Loss Records</h2>
+
+    <?php if (empty($damageLossLog)): ?>
+    <p>No damage or loss records found.</p>
+    <?php else: ?>
+        <table border="1" cellpadding="6">
+            <tr>
+            <th>Date</th>
+            <th>Item</th>
+            <th>Serial #</th>
+            <th>Value</th>
+            <th>Reason</th>
+            <th>Notes</th>
+            <th>Logged By</th>
+            </tr>
+
+            <?php foreach ($damageLossLog as $l): ?>
+                <tr>
+                <td><?= htmlspecialchars($l['logged_at']) ?></td>
+                <td><?= htmlspecialchars($l['item_name']) ?></td>
+                <td><?= htmlspecialchars($l['serial_number']) ?></td>
+                <td>Rs. <?= number_format($l['item_value'], 2) ?></td>
+                <td><?= htmlspecialchars(ucfirst($l['reason'])) ?></td>
+                <td><?= htmlspecialchars($l['notes'] ?? '') ?></td>
+                <td><?= htmlspecialchars($l['logged_by_name']) ?></td>
+                </tr>
+            <?php endforeach; ?>
+        </table>
+    <?php endif; ?>
+
     <h2>Students</h2>
     <ul>
         <li>Active accounts: <?= $summary['students_active'] ?></li>
@@ -32,8 +63,8 @@ $statuses = ['available', 'reserved', 'borrowed', 'damaged', 'lost'];
 
     <h2>Fines</h2>
     <ul>
-        <li>Unpaid: <?= $summary['fines_unpaid_count'] ?> fine(s), totaling $<?= number_format($summary['fines_unpaid_amount'], 2) ?></li>
-        <li>Paid: <?= $summary['fines_paid_count'] ?> fine(s), totaling $<?= number_format($summary['fines_paid_amount'], 2) ?></li>
+        <li>Unpaid: <?= $summary['fines_unpaid_count'] ?> fine(s), totaling Rs. <?= number_format($summary['fines_unpaid_amount'], 2) ?></li>
+        <li>Paid: <?= $summary['fines_paid_count'] ?> fine(s), totaling Rs. <?= number_format($summary['fines_paid_amount'], 2) ?></li>
     </ul>
 
     <h2>Overdue Borrows (<?= $summary['overdue_count'] ?>)</h2>

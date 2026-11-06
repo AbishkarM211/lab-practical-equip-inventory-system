@@ -55,6 +55,35 @@ input, select, textarea {
     background: #fff;
     font: inherit;
 }
+
+
+/* Notification read/unread action */
+form.notification-action {
+    display: inline-block;
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    margin: 6px 0 0;
+}
+
+form.notification-action button {
+    width: auto;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+form.notification-action button:hover {
+    background: var(--border);
+}
+
+
 input[type="radio"], input[type="checkbox"] { width: auto; margin-right: 6px; }
 input[type="file"] { padding: 6px; }
 textarea { min-height: 100px; resize: vertical; }

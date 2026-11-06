@@ -37,12 +37,12 @@ $units = getPhysicalItemsForModel($conn, $modelId);
                 <td><?= htmlspecialchars($u['serial_number']) ?></td>
                 <td><?= htmlspecialchars($u['status']) ?></td>
                 <td>
+                    <a href="unit_history.php?item_id=<?= (int) $u['item_id'] ?>">History</a>
                     <?php if (in_array($u['status'], ['reserved', 'borrowed'], true)): ?>
-                        <em>Currently <?= htmlspecialchars($u['status']) ?> — manage via Dashboard</em>
+                        | <em>Currently <?= htmlspecialchars($u['status']) ?> — manage via Dashboard</em>
                     <?php else: ?>
-                        <a href="edit_unit.php?item_id=<?= (int) $u['item_id'] ?>">Edit</a> |
-                        <a href="delete_unit.php?item_id=<?= (int) $u['item_id'] ?>"
-                        onclick="return confirm('Delete this unit?');">Delete</a>
+                        | <a href="edit_unit.php?item_id=<?= (int) $u['item_id'] ?>">Edit</a>
+                        | <a href="delete_unit.php?item_id=<?= (int) $u['item_id'] ?>" onclick="return confirm('Delete this unit?');">Delete</a>
                     <?php endif; ?>
                 </td>
             </tr>

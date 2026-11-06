@@ -1,0 +1,27 @@
+Options -Indexes -MultiViews
+
+RewriteEngine On
+RewriteBase /lab-practical-equip-inventory-system/
+
+
+RewriteRule ^admin/?$ admin/dashboard [R=302,L]
+
+
+RewriteRule ^student/?$ student/browse [R=302,L]
+
+
+RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$
+RewriteCond %{THE_REQUEST} \s/+[^\s?]+\.php(?:[?\s]) [NC]
+RewriteRule ^(.+)\.php$ $1 [R=302,L,NE]
+
+
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.+?)/?$ $1.php [L]
+
+
+RewriteRule ^ 404.php [L]
