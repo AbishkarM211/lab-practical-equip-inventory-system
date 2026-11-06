@@ -2,7 +2,12 @@
 require 'config.php';
 require 'includes/auth.php';
 
-$error = null;
+if (isset($_SESSION['user_id'])) {
+    header('Location: ' . ($_SESSION['role'] === 'admin' ? 'admin/dashboard.php' : 'student/browse.php'));
+    exit;
+}
+
+$error = $_GET['error'] ?? null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = registerUser(
@@ -11,15 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_POST['password'] ?? '',
         trim($_POST['email'] ?? ''),
         trim($_POST['full_name'] ?? ''),
+        trim($_POST['phone'] ?? ''),
         'student'
     );
 
-    if ($result['success']) {
-        header('Location: login.php?registered=1');
-        exit;
-    }
-
-    $error = $result['message'];
+    header('Content-Type: application/json');
+    echo json_encode($result);
+    exit;
 }
 ?>
 <!DOCTYPE html>
@@ -35,26 +38,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <p class="error"><?= htmlspecialchars($error) ?></p>
     <?php endif; ?>
 
-    <form method="post">
+    <p id="message"></p>
+
+    <form id="registerForm" method="post">
         <label>Full name:
-            <input type="text" name="full_name" required>
+            <input type="text" name="full_name">
         </label>
 
         <label>Username:
-            <input type="text" name="username" required>
+            <input type="text" name="username">
         </label>
 
         <label>Email:
-            <input type="email" name="email" required>
+            <input type="email" name="email">
+        </label>
+
+        <label>Phone number:
+            <input type="text" name="phone" maxlength="10" inputmode="numeric">
         </label>
 
         <label>Password:
-            <input type="password" name="password" required>
+            <input type="password" name="password">
         </label>
 
         <button type="submit">Register</button>
     </form>
 
     <p><a href="login.php">Already have an account? Log in</a></p>
+
+    <script>
+    const form = document.getElementById('registerForm');
+    const phone = form.phone;
+    const message = document.getElementById('message');
+
+    phone.addEventListener('input', function () {
+        this.value = this.value.replace(/\D/g, '').slice(0, 10);
+    });
+
+    form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        message.textContent = 'Registering...';
+        message.style.color = '';
+
+        try {
+            const response = await fetch('register.php', {
+                method: 'POST',
+                body: new FormData(form)
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                window.location.href = 'login.php?registered=1';
+                return;
+            }
+
+            window.location.href = 'register.php?error=' + encodeURIComponent(result.message);
+        } catch (error) {
+            message.textContent = 'Something went wrong. Please try again.';
+            message.style.color = 'red';
+        }
+    });
+    </script>
 </body>
 </html>

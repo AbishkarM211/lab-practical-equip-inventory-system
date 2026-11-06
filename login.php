@@ -2,6 +2,11 @@
 require 'config.php';
 require 'includes/auth.php';
 
+if (isset($_SESSION['user_id'])) {
+    header('Location: ' . ($_SESSION['role'] === 'admin' ? 'admin/dashboard.php' : 'student/browse.php'));
+    exit;
+}
+
 $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -19,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <link rel="stylesheet" href="assets/css/style.css"><title>Log in</title></head>
 <body>
-    <h1>Lab Inventory — Log in</h1>
+    <h1>Log-in Portal</h1>
     <?php if (isset($_GET['registered'])): ?>
         <p style="color:green;">Account created — you can log in now.</p>
     <?php endif; ?>
@@ -32,6 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button type="submit">Log in</button>
     </form>
     <p><a href="register.php">Need an account? Register</a></p>
-    <p style="color:#888;">Demo accounts: admin1 / jdoe, both password "password123"</p>
+    <!-- <p style="color:#888;">Demo accounts: admin1 / jdoe, both password "password123"</p> -->
 </body>
 </html>

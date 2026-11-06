@@ -8,3 +8,4 @@ if (!$conn) {
 mysqli_set_charset($conn, 'utf8mb4');
 
 define('RESERVATION_HOURS', 2);
+define('LATE_FEE_PER_DAY', 5.00);

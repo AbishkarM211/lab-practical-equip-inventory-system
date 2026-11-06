@@ -6,7 +6,7 @@ requireRole('admin');
 
 $result = mysqli_query($conn, "
     SELECT br.borrow_id, br.status, br.reservation_time, br.borrow_date, br.due_date, br.return_date,
-           u.full_name, em.name, pi.serial_number
+        u.full_name, em.name, pi.serial_number
     FROM borrow_records br
     JOIN users u ON u.user_id = br.user_id
     JOIN physical_items pi ON pi.item_id = br.item_id

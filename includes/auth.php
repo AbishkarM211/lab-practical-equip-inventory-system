@@ -3,47 +3,68 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-function registerUser($conn, $username, $password, $email, $fullName, $role = 'student') {
-    $username = mysqli_real_escape_string($conn, $username);
-    $email = mysqli_real_escape_string($conn, $email);
-    $fullName = mysqli_real_escape_string($conn, $fullName);
-
-    $check = mysqli_query($conn, "SELECT user_id FROM users WHERE username='$username' OR email='$email'");
-    if (mysqli_num_rows($check) > 0) {
-        return ['success' => false, 'message' => 'Username or email already exists.'];
+function registerUser(mysqli $conn, string $username, string $password, string $email, string $fullName, string $phone, string $role = 'student'): array
+{
+    if ($username === '' || $password === '' || $email === '' || $fullName === '' || $phone === '') {
+        return ['success' => false, 'message' => 'All fields are required.'];
     }
 
-    $password = password_hash($password, PASSWORD_DEFAULT);
-    $query = "INSERT INTO users (username, password, full_name, email, role) VALUES ('$username', '$password', '$fullName', '$email', '$role')";
-
-    if (mysqli_query($conn, $query)) {
-        return ['success' => true];
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return ['success' => false, 'message' => 'Please enter a valid email address.'];
     }
 
-    return ['success' => false, 'message' => 'Could not create account.'];
+    if (!preg_match('/^\d{10}$/', $phone)) {
+        return ['success' => false, 'message' => 'Phone number must be exactly 10 digits.'];
+    }
+    $stmt = mysqli_prepare($conn, "SELECT user_id FROM users WHERE username = ? OR email = ? OR phone = ?");
+    mysqli_stmt_bind_param($stmt, 'sss', $username, $email, $phone);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    if (mysqli_fetch_assoc($result)) {
+        return ['success' => false, 'message' => 'That username or email is already registered.'];
+    }
+
+    $hash = password_hash($password, PASSWORD_DEFAULT);
+    $stmt = mysqli_prepare(
+        $conn,
+        "INSERT INTO users (username, password, full_name, email, phone, role) VALUES (?, ?, ?, ?, ?, ?)"
+    );
+    mysqli_stmt_bind_param($stmt, 'ssssss', $username, $hash, $fullName, $email, $phone, $role);
+    mysqli_stmt_execute($stmt);
+
+    return ['success' => true, 'user_id' => (int) mysqli_insert_id($conn)];
 }
 
-function loginUser($conn, $username, $password) {
-    $username = mysqli_real_escape_string($conn, $username);
-    $result = mysqli_query($conn, "SELECT * FROM users WHERE username='$username'");
+function loginUser(mysqli $conn, string $username, string $password): array
+{
+    $stmt = mysqli_prepare($conn, "SELECT * FROM users WHERE username = ?");
+    mysqli_stmt_bind_param($stmt, 's', $username);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
     $user = mysqli_fetch_assoc($result);
 
     if (!$user || !password_verify($password, $user['password'])) {
         return ['success' => false, 'message' => 'Invalid username or password.'];
     }
 
-    $_SESSION['user_id'] = $user['user_id'];
+    if (!$user['is_active']) {
+        return ['success' => false, 'message' => 'This account has been deactivated. Contact an admin.'];
+    }
+
+    $_SESSION['user_id']  = (int) $user['user_id'];
     $_SESSION['username'] = $user['username'];
-    $_SESSION['role'] = $user['role'];
+    $_SESSION['role']     = $user['role'];
 
     return ['success' => true, 'role' => $user['role']];
 }
 
-function setFlash($message) {
+function setFlash(string $message): void
+{
     $_SESSION['flash'] = $message;
 }
 
-function getFlash() {
+function getFlash(): ?string
+{
     if (empty($_SESSION['flash'])) {
         return null;
     }
@@ -52,22 +73,25 @@ function getFlash() {
     return $message;
 }
 
-function logoutUser() {
+function logoutUser(): void
+{
     $_SESSION = [];
     session_destroy();
 }
 
-function requireLogin() {
+function requireLogin(): void
+{
     if (!isset($_SESSION['user_id'])) {
         header('Location: ../login.php');
         exit;
     }
 }
 
-function requireRole($role) {
+function requireRole(string $role): void
+{
     requireLogin();
     if ($_SESSION['role'] !== $role) {
         http_response_code(403);
-        die('Access denied.');
+        die('Access denied: this page is ' . $role . '-only.');
     }
 }

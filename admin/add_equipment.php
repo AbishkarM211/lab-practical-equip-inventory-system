@@ -9,50 +9,76 @@ $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $modelChoice = $_POST['model_choice'] ?? 'existing';
-    $modelId = 0;
     $serialNumber = trim($_POST['serial_number'] ?? '');
 
     if ($serialNumber === '') {
         $error = 'Serial number is required.';
     }
 
-    if ($error === '' && $modelChoice === 'new') {
-        $name = trim($_POST['name'] ?? '');
-        $description = trim($_POST['description'] ?? '');
-        $category = trim($_POST['category'] ?? '');
-        $itemValue = (float) ($_POST['item_value'] ?? 0);
-        $imagePath = handleEquipmentImageUpload($_FILES['image'] ?? ['error' => UPLOAD_ERR_NO_FILE]);
-
-        if ($name === '') {
-            $error = 'Name is required.';
-        } else {
-            $safeName = mysqli_real_escape_string($conn, $name);
-            $safeDescription = mysqli_real_escape_string($conn, $description);
-            $safeCategory = mysqli_real_escape_string($conn, $category);
-            $safeImagePath = $imagePath ? "'" . mysqli_real_escape_string($conn, $imagePath) . "'" : 'NULL';
-
-            if (mysqli_query($conn, "INSERT INTO equipment_models (name, description, category, item_value, image_path) VALUES ('$safeName', '$safeDescription', '$safeCategory', $itemValue, $safeImagePath)")) {
-                $modelId = mysqli_insert_id($conn);
-            } else {
-                $error = 'Could not create the equipment model.';
-            }
-        }
-    } else {
-        $modelId = (int) ($_POST['existing_model_id'] ?? 0);
-        if ($modelId <= 0) {
-            $error = 'Please select an equipment model.';
-        }
-    }
-
     if ($error === '') {
-        $safeSerial = mysqli_real_escape_string($conn, $serialNumber);
-        if (mysqli_query($conn, "INSERT INTO physical_items (model_id, serial_number, status) VALUES ($modelId, '$safeSerial', 'available')")) {
-            $success = 'Equipment added.';
-        } else {
-            if ($modelChoice === 'new' && $modelId > 0) {
-                mysqli_query($conn, "DELETE FROM equipment_models WHERE model_id = $modelId");
+        $inTransaction = false;
+
+        try {
+            $imagePath = handleEquipmentImageUpload(
+                $_FILES['image'] ?? ['error' => UPLOAD_ERR_NO_FILE]
+            );
+
+            mysqli_begin_transaction($conn);
+            $inTransaction = true;
+
+            if ($modelChoice === 'new') {
+                $name = trim($_POST['name'] ?? '');
+                $description = trim($_POST['description'] ?? '');
+                $category = trim($_POST['category'] ?? '');
+                $itemValue = (float) ($_POST['item_value'] ?? 0);
+
+                if ($name === '') {
+                    throw new Exception('Name is required.');
+                }
+
+                $stmt = mysqli_prepare($conn, "INSERT INTO equipment_models (name, description, category, item_value, image_path) VALUES (?, ?, ?, ?, ?)");
+
+                if (!$stmt) {
+                    throw new Exception('Could not create the equipment model.');
+                }
+
+                mysqli_stmt_bind_param($stmt, 'sssds', $name, $description, $category, $itemValue, $imagePath);
+
+                if (!mysqli_stmt_execute($stmt)) {
+                    throw new Exception('Could not create the equipment model.');
+                }
+
+                $modelId = (int) mysqli_insert_id($conn);
+            } else {
+                $modelId = (int) ($_POST['existing_model_id'] ?? 0);
+
+                if ($modelId <= 0) {
+                    throw new Exception('Please select an equipment model.');
+                }
             }
-            $error = 'Could not add the serial number. It may already exist.';
+
+            $stmt = mysqli_prepare($conn, "INSERT INTO physical_items (model_id, serial_number, status) VALUES (?, ?, 'available')");
+
+            if (!$stmt) {
+                throw new Exception('Could not add the serial number. It may already exist.');
+            }
+
+            mysqli_stmt_bind_param($stmt, 'is', $modelId, $serialNumber);
+
+            if (!mysqli_stmt_execute($stmt)) {
+                throw new Exception('Could not add the serial number. It may already exist.');
+            }
+
+            mysqli_commit($conn);
+            $inTransaction = false;
+
+            $success = 'Equipment added.';
+        } catch (Exception $e) {
+            if ($inTransaction) {
+                mysqli_rollback($conn);
+            }
+
+            $error = $e->getMessage();
         }
     }
 }
